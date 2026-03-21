@@ -1,131 +1,257 @@
-# Python Automation - FastAPI + Oracle Database
+# 🐍 Python Automation API
 
-API REST robusta con integración a Oracle Database.
+API REST con FastAPI para automatización de procesos, integrada con Oracle Database.
 
-## 🚀 Características
+## 📋 Descripción
 
-- **FastAPI** - Framework moderno de alto rendimiento
-- **Oracle Database** - Conexión con pool de conexiones
-- **Type Safety** - Pydantic models con validación
-- **Manejo de errores** - Try-catch con respuestas claras
-- **Docker** - Despliegue contenerizado
-- **CORS** - Control de accesos cross-origin
-- **OAuth2/JWT** - Autenticación segura (preparado)
+API RESTful de alto rendimiento construida con FastAPI que proporciona endpoints para gestión de pedidos (orders) con persistencia en Oracle Database. Ideal para sistemas de automatización empresarial.
 
-## 📦 Instalación
+## 🛠️ Características
+
+- ✅ **FastAPI** - Framework moderno y rápido
+- ✅ **Oracle Database** - Persistencia robusta
+- ✅ **Pydantic** - Validación de datos
+- ✅ **CORS** - Soporte para cross-origin
+- ✅ **Connection Pool** - Optimización de conexiones
+- ✅ **Logging** - Registro estructurado
+- ✅ **Health Checks** - Monitoreo de estado
+- ✅ **Documentación Auto** - OpenAPI/Swagger
+
+## 🚀 Instalación Local
+
+### Prerrequisitos
+
+- Python 3.9+
+- Oracle Database (local o remoto)
+
+### Pasos
 
 ```bash
-# Clonar repositorio
+# 1. Clonar
 git clone https://github.com/alexkore12/python-automation-20260321.git
 cd python-automation-20260321
 
-# Instalar dependencias
+# 2. Crear entorno virtual
+python3 -m venv venv
+source venv/bin/activate
+
+# 3. Instalar dependencias
 pip install -r requirements.txt
-```
 
-## ⚙️ Configuración
-
-Configura las variables de entorno:
-
-```bash
+# 4. Configurar variables de entorno
 export ORACLE_USER="system"
-export ORACLE_PASSWORD="your_password"
+export ORACLE_PASSWORD="tu_password"
 export ORACLE_DSN="localhost:1521/orclpdb1"
+
+# 5. Ejecutar
+python main.py
 ```
 
-## ▶️ Uso
+La API estará disponible en `http://localhost:8000`
+
+## 🐳 Docker
+
+### Build
 
 ```bash
-# Iniciar servidor
-python main.py
+docker build -t python-automation-api .
+```
 
-# O con uvicorn
-uvicorn main:app --reload --port 8000
+### Ejecutar con Oracle
+
+```bash
+docker run -d \
+  -p 8000:8000 \
+  -e ORACLE_USER=system \
+  -e ORACLE_PASSWORD=password \
+  -e ORACLE_DSN=oracle:1521/orclpdb1 \
+  python-automation-api
+```
+
+### Docker Compose
+
+```yaml
+version: '3.8'
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - ORACLE_USER=${ORACLE_USER}
+      - ORACLE_PASSWORD=${ORACLE_PASSWORD}
+      - ORACLE_DSN=${ORACLE_DSN}
+    depends_on:
+      - oracle
+
+  oracle:
+    image: container-registry.oracle.com/database/express:latest
+    ports:
+      - "1521:1521"
+    environment:
+      - ORACLE_PWD=password
 ```
 
 ## 📡 Endpoints
 
+### Health & Status
+
 | Método | Endpoint | Descripción |
 |--------|----------|-------------|
-| GET | `/` | Estado de la API |
-| GET | `/health` | Health check |
-| GET | `/orders` | Listar pedidos |
-| GET | `/orders/{id}` | Pedido por ID |
-| POST | `/orders` | Crear pedido |
+| GET | `/` | Información base de la API |
+| GET | `/health` | Health check con estado de DB |
+
+### Orders
+
+| Método | Endpoint | Descripción |
+|--------|----------|-------------|
+| GET | `/orders` | Listar todos los pedidos |
+| GET | `/orders/{id}` | Obtener pedido por ID |
+| POST | `/orders` | Crear nuevo pedido |
 | PUT | `/orders/{id}` | Actualizar pedido |
 | DELETE | `/orders/{id}` | Eliminar pedido |
-| GET | `/stats` | Estadísticas |
 
-## 🗄️ Schema Oracle
+### Stats
 
-```sql
-CREATE TABLE orders (
-    id NUMBER PRIMARY KEY,
-    customer VARCHAR2(100) NOT NULL,
-    amount NUMBER(10, 2) NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+| Método | Endpoint | Descripción |
+|--------|----------|-------------|
+| GET | `/stats` | Estadísticas de pedidos |
+
+## 📝 Modelos de Datos
+
+### OrderCreate
+```json
+{
+  "customer": "string (required, 1-100 chars)",
+  "amount": "number (required, > 0)",
+  "description": "string (optional)"
+}
 ```
 
-## 🧪 Testing
+### OrderUpdate
+```json
+{
+  "customer": "string (optional)",
+  "amount": "number (optional, > 0)",
+  "description": "string (optional)"
+}
+```
+
+### Response Example
+```json
+{
+  "id": 1,
+  "customer": "Juan Pérez",
+  "amount": 150.50,
+  "description": "Pedido de ejemplo",
+  "message": "Order created successfully"
+}
+```
+
+## 🔧 Configuración
+
+### Variables de Entorno
+
+| Variable | Descripción | Default |
+|----------|-------------|---------|
+| `ORACLE_USER` | Usuario de Oracle | system |
+| `ORACLE_PASSWORD` | Password de Oracle | password |
+| `ORACLE_DSN` | Data Source Name | localhost:1521/orclpdb1 |
+
+## 📁 Estructura
+
+```
+python-automation-20260321/
+├── main.py              # Aplicación principal
+├── requirements.txt     # Dependencias
+├── Dockerfile          # Imagen Docker
+├── docker-compose.yaml  # Orquestación
+└── README.md           # Este archivo
+```
+
+## 📊 Health Check Response
+
+```json
+{
+  "status": "healthy",
+  "database": "connected",
+  "service": "python-automation"
+}
+```
+
+## 📈 Stats Response
+
+```json
+{
+  "total_orders": 42,
+  "total_amount": 15000.00,
+  "average_amount": 357.14
+}
+```
+
+## 🔨 Desarrollo
+
+### Ejecutar con hot-reload
+
+```bash
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
+```
+
+### Ejecutar tests
 
 ```bash
 pytest tests/
 ```
 
-## 🐳 Docker
+## ☁️ Deploy
 
-```bash
-# Build
-docker build -t python-automation .
+### Render/Railway
 
-# Run
-docker run -p 8000:8000 \
-  -e ORACLE_USER=system \
-  -e ORACLE_PASSWORD=password \
-  -e ORACLE_DSN=localhost:1521/orclpdb1 \
-  python-automation
+1. Conecta tu repositorio
+2. Configura las variables de entorno
+3. Comando: `python main.py`
+
+### Kubernetes
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: python-automation
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: python-automation
+  template:
+    spec:
+      containers:
+      - name: api
+        image: python-automation-api:latest
+        ports:
+        - containerPort: 8000
+        env:
+        - name: ORACLE_USER
+          valueFrom:
+            secretKeyRef:
+              name: oracle-credentials
+              key: user
 ```
 
-## 📁 Estructura
+## 📝 Changelog
 
-```
-├── main.py           # Aplicación principal
-├── requirements.txt  # Dependencias
-├── Dockerfile        # Contenedor
-├── README.md         # Documentación
-├── config.py         # Configuración
-├── models/           # Modelos de datos
-└── tests/           # Pruebas
-```
+- **v1.0.0** - API básica con CRUD de pedidos
+- **v1.0.1** - Mejoras en validación y logging
+- **v1.1.0** - Endpoint de estadísticas
 
-## 🔧 Dependencias
+## 🤝 Contribución
 
-- fastapi
-- uvicorn
-- oracledb
-- python-dotenv
+1. Fork el repositorio
+2. Crea una rama (`git checkout -b feature/nueva-caracteristica`)
+3. Commit tus cambios (`git commit -am 'Agrega nueva característica'`)
+4. Push a la rama (`git push origin feature/nueva-caracteristica`)
+5. Crea un Pull Request
 
-## 🔒 Seguridad
+## 📄 Licencia
 
-### Recomendaciones para Producción
-1. **Usar HTTPS** - Configurar proxy reverso (nginx, traefik)
-2. **Variables de entorno** - No hardcodear passwords
-3. **Limitar CORS** - Especificar dominios permitidos
-4. **Rate Limiting** - Implementar límites de requests
-5. **Logs** - Enviar logs a sistema centralizado
-6. **Validación Pydantic** - Toda entrada validada
-
-### Oracle Security
-- Usar Oracle Wallet para credenciales
-- Pool de conexiones con timeouts
-- SQL injection prevention (ORM/Pydantic)
-
-## 📝 Licencia
-
-MIT - Alejandro Kore
-
-## 🤖 Actualizado por
-
-OpenClaw AI Assistant - 2026-03-21
-*Mejoras: Documentación de seguridad, CORS, OAuth2 preparado*
+MIT License - Uso libre y modificaciones bienvenidas.
