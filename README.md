@@ -1,33 +1,109 @@
-# Python FastAPI REST API
+# Python Automation - FastAPI + Oracle Database
 
-## Descripción
-API REST desarrollada con FastAPI y Oracle Database para gestión de órdenes.
+API REST robusta con integración a Oracle Database.
 
-## Características
-- Endpoints RESTful
-- Conexión a Oracle Database
-- Pool de conexiones
-- CRUD completo
+## 🚀 Características
 
-## Instalación
+- **FastAPI** - Framework moderno de alto rendimiento
+- **Oracle Database** - Conexión con pool de conexiones
+- **Type Safety** - Pydantic models con validación
+- **Manejo de errores** - Try-catch con respuestas claras
+- **Docker** - Despliegue contenerizado
+
+## 📦 Instalación
+
 ```bash
+# Clonar repositorio
+git clone https://github.com/alexkore12/python-automation-20260321.git
+cd python-automation-20260321
+
+# Instalar dependencias
 pip install -r requirements.txt
 ```
 
-## Ejecución
+## ⚙️ Configuración
+
+Configura las variables de entorno:
+
 ```bash
-uvicorn main:app --reload
+export ORACLE_USER="system"
+export ORACLE_PASSWORD="your_password"
+export ORACLE_DSN="localhost:1521/orclpdb1"
 ```
 
-## Endpoints
-- `GET /` - Health check
-- `GET /orders` - Listar órdenes
-- `POST /orders` - Crear orden
+## ▶️ Uso
 
-## Configuración
-Modificar DSN en main.py para tu base de datos Oracle.
-
-## Tests
 ```bash
-pytest test_api.py
+# Iniciar servidor
+python main.py
+
+# O con uvicorn
+uvicorn main:app --reload --port 8000
 ```
+
+## 📡 Endpoints
+
+| Método | Endpoint | Descripción |
+|--------|----------|-------------|
+| GET | `/` | Estado de la API |
+| GET | `/health` | Health check |
+| GET | `/orders` | Listar pedidos |
+| GET | `/orders/{id}` | Pedido por ID |
+| POST | `/orders` | Crear pedido |
+| PUT | `/orders/{id}` | Actualizar pedido |
+| DELETE | `/orders/{id}` | Eliminar pedido |
+| GET | `/stats` | Estadísticas |
+
+## 🗄️ Schema Oracle
+
+```sql
+CREATE TABLE orders (
+    id NUMBER PRIMARY KEY,
+    customer VARCHAR2(100) NOT NULL,
+    amount NUMBER(10, 2) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+## 🧪 Testing
+
+```bash
+pytest tests/
+```
+
+## 🐳 Docker
+
+```bash
+# Build
+docker build -t python-automation .
+
+# Run
+docker run -p 8000:8000 \
+  -e ORACLE_USER=system \
+  -e ORACLE_PASSWORD=password \
+  -e ORACLE_DSN=localhost:1521/orclpdb1 \
+  python-automation
+```
+
+## 📁 Estructura
+
+```
+├── main.py           # Aplicación principal
+├── requirements.txt  # Dependencias
+├── Dockerfile        # Contenedor
+├── README.md         # Documentación
+├── config.py         # Configuración
+├── models/           # Modelos de datos
+└── tests/           # Pruebas
+```
+
+## 🔧 Dependencias
+
+- fastapi
+- uvicorn
+- oracledb
+- python-dotenv
+
+## 📝 Licencia
+
+MIT - Alejandro Kore
