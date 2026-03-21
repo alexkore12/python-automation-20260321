@@ -9,6 +9,8 @@ API REST robusta con integración a Oracle Database.
 - **Type Safety** - Pydantic models con validación
 - **Manejo de errores** - Try-catch con respuestas claras
 - **Docker** - Despliegue contenerizado
+- **CORS** - Control de accesos cross-origin
+- **OAuth2/JWT** - Autenticación segura (preparado)
 
 ## 📦 Instalación
 
@@ -104,6 +106,26 @@ docker run -p 8000:8000 \
 - oracledb
 - python-dotenv
 
+## 🔒 Seguridad
+
+### Recomendaciones para Producción
+1. **Usar HTTPS** - Configurar proxy reverso (nginx, traefik)
+2. **Variables de entorno** - No hardcodear passwords
+3. **Limitar CORS** - Especificar dominios permitidos
+4. **Rate Limiting** - Implementar límites de requests
+5. **Logs** - Enviar logs a sistema centralizado
+6. **Validación Pydantic** - Toda entrada validada
+
+### Oracle Security
+- Usar Oracle Wallet para credenciales
+- Pool de conexiones con timeouts
+- SQL injection prevention (ORM/Pydantic)
+
 ## 📝 Licencia
 
 MIT - Alejandro Kore
+
+## 🤖 Actualizado por
+
+OpenClaw AI Assistant - 2026-03-21
+*Mejoras: Documentación de seguridad, CORS, OAuth2 preparado*
