@@ -5,23 +5,43 @@ API REST robusta con integración a Oracle Database
 import os
 from contextlib import asynccontextmanager
 from typing import Optional, List
+from datetime import datetime
+
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, field_validator
 import oracledb
 import logging
+import sys
+
+# Cargar variables de entorno
+from dotenv import load_dotenv
+load_dotenv()
 
 # Logging
-logging.basicConfig(level=logging.INFO)
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
+logging.basicConfig(
+    level=getattr(logging, LOG_LEVEL),
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[logging.StreamHandler(sys.stdout)]
+)
 logger = logging.getLogger(__name__)
 
 # Configuración desde environment
-ORACLE_USER = os.getenv("ORACLE_USER", "system")
-ORACLE_PASSWORD = os.getenv("ORACLE_PASSWORD", "password")
+ORACLE_USER = os.getenv("ORACLE_USER")
+ORACLE_PASSWORD = os.getenv("ORACLE_PASSWORD")
 ORACLE_DSN = os.getenv("ORACLE_DSN", "localhost:1521/orclpdb1")
+CORS_ORIGINS = os.getenv("CORS_ORIGINS", "*").split(",")
+HOST = os.getenv("HOST", "0.0.0.0")
+PORT = int(os.getenv("PORT", "8000"))
+
+# Validar configuración requerida
+if not ORACLE_USER or not ORACLE_PASSWORD:
+    logger.warning("Oracle credentials not fully configured. Database connection may fail.")
 
 # Pool de conexiones
 pool: Optional[oracledb.AsyncPool] = None
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -29,38 +49,42 @@ async def lifespan(app: FastAPI):
     global pool
     try:
         pool = oracledb.create_pool(
-            user=ORACLE_USER,
-            password=ORACLE_PASSWORD,
+            user=ORACLE_USER or "system",
+            password=ORACLE_PASSWORD or "password",
             dsn=ORACLE_DSN,
             min=2,
             max=10
         )
-        logger.info("Oracle pool created successfully")
+        logger.info("✅ Oracle pool created successfully")
     except Exception as e:
-        logger.warning(f"Could not create Oracle pool: {e}")
+        logger.warning(f"⚠️ Could not create Oracle pool: {e}")
         pool = None
     
     yield
     
     if pool:
         await pool.close()
-        logger.info("Oracle pool closed")
+        logger.info("✅ Oracle pool closed")
+
 
 app = FastAPI(
     title="Python Automation API",
-    description="API REST con Oracle Database",
-    version="1.0.0",
-    lifespan=lifespan
+    description="API REST con Oracle Database para automatización",
+    version="1.1.0",
+    lifespan=lifespan,
+    docs_url="/docs",
+    redoc_url="/redoc"
 )
 
 # CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 # Models
 class Order(BaseModel):
@@ -68,6 +92,7 @@ class Order(BaseModel):
     customer: str = Field(..., min_length=1, max_length=100)
     amount: float = Field(..., gt=0)
     description: Optional[str] = None
+    created_at: Optional[str] = None
     
     @field_validator('amount')
     @classmethod
@@ -76,15 +101,18 @@ class Order(BaseModel):
             raise ValueError('Amount must be positive')
         return round(v, 2)
 
+
 class OrderCreate(BaseModel):
     customer: str = Field(..., min_length=1, max_length=100)
     amount: float = Field(..., gt=0)
     description: Optional[str] = None
 
+
 class OrderUpdate(BaseModel):
     customer: Optional[str] = Field(None, min_length=1, max_length=100)
     amount: Optional[float] = Field(None, gt=0)
     description: Optional[str] = None
+
 
 # Database dependency
 async def get_db():
@@ -93,38 +121,58 @@ async def get_db():
     async with pool.acquire() as conn:
         yield conn
 
+
 # Routes
 @app.get("/")
 async def root():
     return {
         "message": "Python Automation API",
-        "version": "1.0.0",
+        "version": "1.1.0",
         "status": "running",
-        "docs": "/docs"
+        "docs": "/docs",
+        "timestamp": datetime.utcnow().isoformat()
     }
+
 
 @app.get("/health")
 async def health_check():
     db_status = "connected" if pool else "disconnected"
     return {
-        "status": "healthy",
+        "status": "healthy" if pool else "degraded",
         "database": db_status,
-        "service": "python-automation"
+        "service": "python-automation",
+        "timestamp": datetime.utcnow().isoformat()
     }
 
+
 @app.get("/orders", response_model=List[dict])
-async def get_orders(db: oracledb.AsyncConnection = Depends(get_db)):
-    """Listar todos los pedidos"""
+async def get_orders(
+    db: oracledb.AsyncConnection = Depends(get_db),
+    skip: int = 0,
+    limit: int = 100
+):
+    """Listar todos los pedidos con paginación"""
     try:
+        # Validar paginación
+        if skip < 0:
+            raise HTTPException(400, "skip must be >= 0")
+        if limit < 1 or limit > 100:
+            raise HTTPException(400, "limit must be between 1 and 100")
+        
         cursor = db.cursor()
-        cursor.execute("SELECT id, customer, amount, description FROM orders ORDER BY id")
+        cursor.execute(
+            "SELECT id, customer, amount, description, created_at FROM orders ORDER BY id OFFSET :1 ROWS FETCH NEXT :2 ROWS ONLY",
+            [skip, limit]
+        )
         rows = cursor.fetchall()
+        
         return [
             {
                 "id": r[0],
                 "customer": r[1],
                 "amount": float(r[2]) if r[2] else 0,
-                "description": r[3]
+                "description": r[3],
+                "created_at": r[4].isoformat() if r[4] else None
             }
             for r in rows
         ]
@@ -132,12 +180,16 @@ async def get_orders(db: oracledb.AsyncConnection = Depends(get_db)):
         logger.error(f"Database error: {e}")
         raise HTTPException(500, "Error fetching orders")
 
+
 @app.get("/orders/{order_id}", response_model=dict)
 async def get_order(order_id: int, db: oracledb.AsyncConnection = Depends(get_db)):
     """Obtener pedido por ID"""
     try:
         cursor = db.cursor()
-        cursor.execute("SELECT id, customer, amount, description FROM orders WHERE id = :1", [order_id])
+        cursor.execute(
+            "SELECT id, customer, amount, description, created_at FROM orders WHERE id = :1", 
+            [order_id]
+        )
         row = cursor.fetchone()
         
         if not row:
@@ -147,13 +199,15 @@ async def get_order(order_id: int, db: oracledb.AsyncConnection = Depends(get_db
             "id": row[0],
             "customer": row[1],
             "amount": float(row[2]) if row[2] else 0,
-            "description": row[3]
+            "description": row[3],
+            "created_at": row[4].isoformat() if row[4] else None
         }
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Error: {e}")
         raise HTTPException(500, "Error fetching order")
+
 
 @app.post("/orders", status_code=201, response_model=dict)
 async def create_order(order: OrderCreate, db: oracledb.AsyncConnection = Depends(get_db)):
@@ -171,6 +225,8 @@ async def create_order(order: OrderCreate, db: oracledb.AsyncConnection = Depend
         )
         db.commit()
         
+        logger.info(f"✅ Created order {new_id}")
+        
         return {
             "id": new_id,
             "customer": order.customer,
@@ -182,6 +238,7 @@ async def create_order(order: OrderCreate, db: oracledb.AsyncConnection = Depend
         db.rollback()
         logger.error(f"Error creating order: {e}")
         raise HTTPException(500, "Error creating order")
+
 
 @app.put("/orders/{order_id}", response_model=dict)
 async def update_order(
@@ -201,24 +258,33 @@ async def update_order(
         # Build update query
         updates = []
         params = []
+        idx = 1
+        
         if order_update.customer is not None:
-            updates.append("customer = :1")
+            updates.append(f"customer = :{idx}")
             params.append(order_update.customer)
+            idx += 1
         if order_update.amount is not None:
-            updates.append("amount = :2")
+            updates.append(f"amount = :{idx}")
             params.append(order_update.amount)
+            idx += 1
         if order_update.description is not None:
-            updates.append("description = :3")
+            updates.append(f"description = :{idx}")
             params.append(order_update.description)
+            idx += 1
         
         if updates:
             params.append(order_id)
-            query = f"UPDATE orders SET {', '.join(updates)} WHERE id = :{len(params)}"
+            query = f"UPDATE orders SET {', '.join(updates)} WHERE id = :{idx}"
             cursor.execute(query, params)
             db.commit()
+            logger.info(f"✅ Updated order {order_id}")
         
         # Fetch updated
-        cursor.execute("SELECT id, customer, amount, description FROM orders WHERE id = :1", [order_id])
+        cursor.execute(
+            "SELECT id, customer, amount, description FROM orders WHERE id = :1", 
+            [order_id]
+        )
         row = cursor.fetchone()
         
         return {
@@ -234,6 +300,7 @@ async def update_order(
         logger.error(f"Error updating order: {e}")
         raise HTTPException(500, "Error updating order")
 
+
 @app.delete("/orders/{order_id}")
 async def delete_order(order_id: int, db: oracledb.AsyncConnection = Depends(get_db)):
     """Eliminar pedido"""
@@ -245,6 +312,8 @@ async def delete_order(order_id: int, db: oracledb.AsyncConnection = Depends(get
             raise HTTPException(404, f"Order {order_id} not found")
         
         db.commit()
+        logger.info(f"✅ Deleted order {order_id}")
+        
         return {"message": f"Order {order_id} deleted", "id": order_id}
     except HTTPException:
         raise
@@ -252,6 +321,7 @@ async def delete_order(order_id: int, db: oracledb.AsyncConnection = Depends(get
         db.rollback()
         logger.error(f"Error deleting order: {e}")
         raise HTTPException(500, "Error deleting order")
+
 
 @app.get("/stats")
 async def get_stats(db: oracledb.AsyncConnection = Depends(get_db)):
@@ -265,12 +335,14 @@ async def get_stats(db: oracledb.AsyncConnection = Depends(get_db)):
         return {
             "total_orders": row[0] if row[0] else 0,
             "total_amount": round(float(row[1]) if row[1] else 0, 2),
-            "average_amount": round(float(row[2]) if row[2] else 0, 2)
+            "average_amount": round(float(row[2]) if row[2] else 0, 2),
+            "timestamp": datetime.utcnow().isoformat()
         }
     except Exception as e:
         logger.error(f"Error fetching stats: {e}")
         raise HTTPException(500, "Error fetching stats")
 
+
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host=HOST, port=PORT, log_level=LOG_LEVEL.lower())
