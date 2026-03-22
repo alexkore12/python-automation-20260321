@@ -372,3 +372,24 @@ pylint --security=enabled .
 
 **Last Updated:** March 2026
 **Version:** 2.0
+
+---
+
+## ⚠️ CVE-2026-28500 - ONNX Supply Chain Attack
+
+**Fecha:** Marzo 2026 | **Severidad:** HIGH (CVSS 8.6)
+
+### Descripción
+Se descubrió una vulnerabilidad crítica en la biblioteca ONNX que permite ataques a la cadena de suministro (supply chain attack).
+
+### Vulnerabilidad
+- **Vector:** `onnx.hub.load()` con parámetro `silent=True`
+- **Problema:** El parámetro silent=True salta las advertencias de seguridad, permitiendo que cargas maliciosas se ejecuten sin notificación
+- **Impacto:** Exfiltración de archivos sensibles (SSH keys, credenciales cloud, tokens)
+
+### Referencias
+- NVD: https://nvd.nist.gov/vuln/detail/CVE-2026-28500
+- Reddit r/pwnhub: Discusión original
+
+### Acción Recomendada
+Si tu proyecto usa ONNX, verifica la versión y considera actualizar cuando hay parche disponible. Evita usar `silent=True` en producción.
