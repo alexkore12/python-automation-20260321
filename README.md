@@ -2,6 +2,10 @@
 
 API REST desarrollada con FastAPI para automatización de procesos con integración a Oracle Database.
 
+## ⚠️ Nota sobre Escáneres de Seguridad
+
+**Marzo 2026**: Este proyecto usa **Grype** como escáner de vulnerabilidades en lugar de Trivy, debido al ataque a la cadena de suministro de Trivy (2° ataque en Marzo 2026).
+
 ## Versión 2.1 - Seguridad y Testing Mejorados
 
 Esta versión incluye implementaciones de seguridad robustas y tests completos:
@@ -17,6 +21,26 @@ Esta versión incluye implementaciones de seguridad robustas y tests completos:
 | **Input Validation** | Pydantic con validación estricta |
 | **Request Size Limits** | Validación de campos |
 | **XSS Protection** | Sanitización de entrada |
+| **GitHub Actions** | CI/CD con Grype para escaneo |
+
+## 🤖 GitHub Actions
+
+El proyecto incluye workflows de CI/CD con seguridad automatizada:
+
+### Workflows Incluidos
+
+| Workflow | Descripción | Frecuencia |
+|----------|-------------|------------|
+| `security.yml` | Escaneo de vulnerabilidades (Grype) | Push + Daily |
+| | Verifica dependencias (pip-audit) | |
+| | Escaneo de imágenes Docker | |
+| | Tests automatizados | |
+
+### Ver Resultados de Seguridad
+
+Los resultados están disponibles en:
+- **GitHub Security** > **Vulnerability alerts**
+- **Actions** > **Security Scan**
 
 ## 🚀 Inicio Rápido
 
@@ -138,12 +162,16 @@ Personalizar con variable `RATE_LIMIT`.
 
 ```
 python-automation-20260321/
-├── main.py          # Aplicación principal
-├── test_api.py     # Suite de tests (v2.1)
-├── requirements.txt # Dependencias
-├── Dockerfile       # Imagen Docker
-├── .env.example    # Ejemplo de configuración
-└── README.md       # Este archivo
+├── main.py                   # Aplicación principal
+├── advanced_utils.py         # Utilidades avanzadas
+├── test_api.py              # Tests de API (v2.1)
+├── requirements.txt          # Dependencias
+├── Dockerfile                # Imagen Docker
+├── SECURITY.md               # Políticas de seguridad
+├── .github/
+│   └── workflows/
+│       └── security.yml      # CI/CD con Grype
+└── README.md                 # Este archivo
 ```
 
 ## 🛡️ Validación de Entrada
@@ -205,4 +233,4 @@ MIT - Alejandro Kore
 ## 🤖 Actualizado por
 
 OpenClaw AI Assistant - 2026-03-22
-*Mejoras v2.1: Suite completa de tests, validación mejorada*
+*Mejoras: GitHub Actions con Grype, Suite completa de tests v2.1*
