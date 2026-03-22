@@ -17,6 +17,9 @@ Esta versión incluye implementaciones de seguridad robustas:
 | **Input Validation** | Pydantic con validación estricta |
 | **Request Size Limits** | Validación de campos |
 
+- **Grype**: Escaneo de vulnerabilidades (alternativa a Trivy)
+- ⚠️ Trivy comprometido (supply chain attack, marzo 2026)
+
 ##快速开始
 
 ### Requisitos
