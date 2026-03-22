@@ -1,131 +1,161 @@
-# Python Automation - FastAPI + Oracle Database
+# Python Automation API
 
-API REST robusta con integración a Oracle Database.
+API REST desarrollada con FastAPI para automatización de procesos con integración a Oracle Database.
 
-## 🚀 Características
+## Versión 2.0 - Seguridad Mejorada
 
-- **FastAPI** - Framework moderno de alto rendimiento
-- **Oracle Database** - Conexión con pool de conexiones
-- **Type Safety** - Pydantic models con validación
-- **Manejo de errores** - Try-catch con respuestas claras
-- **Docker** - Despliegue contenerizado
-- **CORS** - Control de accesos cross-origin
-- **OAuth2/JWT** - Autenticación segura (preparado)
+Esta versión incluye implementaciones de seguridad robustas:
 
-## 📦 Instalación
+### 🔒 Características de Seguridad
+
+| Feature | Implementación |
+|---------|----------------|
+| **Helmet-style Headers** | X-Content-Type-Options, X-Frame-Options, X-XSS-Protection, HSTS |
+| **Rate Limiting** | slowapi con límites por endpoint |
+| **CORS Restringido** | Orígenes configurables via entorno |
+| **SQL Injection Prevention** | Parameterized queries siempre |
+| **Input Validation** | Pydantic con validación estricta |
+| **Request Size Limits** | Validación de campos |
+
+##快速开始
+
+### Requisitos
 
 ```bash
-# Clonar repositorio
-git clone https://github.com/alexkore12/python-automation-20260321.git
-cd python-automation-20260321
-
-# Instalar dependencias
 pip install -r requirements.txt
 ```
 
-## ⚙️ Configuración
-
-Configura las variables de entorno:
+### Configuración
 
 ```bash
+# Variables de entorno requeridas
 export ORACLE_USER="system"
-export ORACLE_PASSWORD="your_password"
+export ORACLE_PASSWORD="your_secure_password"
 export ORACLE_DSN="localhost:1521/orclpdb1"
+
+# Opcional
+export ALLOWED_ORIGINS="http://localhost:3000,https://yourdomain.com"
+export RATE_LIMIT="100/minute"
+export PORT=8000
 ```
 
-## ▶️ Uso
+### Ejecutar
 
 ```bash
-# Iniciar servidor
+# Desarrollo
 python main.py
 
-# O con uvicorn
-uvicorn main:app --reload --port 8000
+# Producción
+uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
 ```
 
-## 📡 Endpoints
-
-| Método | Endpoint | Descripción |
-|--------|----------|-------------|
-| GET | `/` | Estado de la API |
-| GET | `/health` | Health check |
-| GET | `/orders` | Listar pedidos |
-| GET | `/orders/{id}` | Pedido por ID |
-| POST | `/orders` | Crear pedido |
-| PUT | `/orders/{id}` | Actualizar pedido |
-| DELETE | `/orders/{id}` | Eliminar pedido |
-| GET | `/stats` | Estadísticas |
-
-## 🗄️ Schema Oracle
-
-```sql
-CREATE TABLE orders (
-    id NUMBER PRIMARY KEY,
-    customer VARCHAR2(100) NOT NULL,
-    amount NUMBER(10, 2) NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-```
-
-## 🧪 Testing
+### Docker
 
 ```bash
-pytest tests/
-```
-
-## 🐳 Docker
-
-```bash
-# Build
 docker build -t python-automation .
-
-# Run
-docker run -p 8000:8000 \
-  -e ORACLE_USER=system \
-  -e ORACLE_PASSWORD=password \
-  -e ORACLE_DSN=localhost:1521/orclpdb1 \
-  python-automation
+docker run -p 8000:8000 -e ORACLE_USER=system -e ORACLE_PASSWORD=pass -e ORACLE_DSN=host:1521/orclpdb1 python-automation
 ```
 
-## 📁 Estructura
+## Endpoints
+
+| Método | Endpoint | Descripción | Rate Limit |
+|--------|----------|-------------|------------|
+| GET | `/` | Información del API | 200/min |
+| GET | `/health` | Health check | 200/min |
+| GET | `/orders` | Listar pedidos | 50/min |
+| GET | `/orders/{id}` | Obtener pedido | 100/min |
+| POST | `/orders` | Crear pedido | 30/min |
+| PUT | `/orders/{id}` | Actualizar pedido | 30/min |
+| DELETE | `/orders/{id}` | Eliminar pedido | 20/min |
+| GET | `/stats` | Estadísticas | 30/min |
+
+## Modelos
+
+### OrderCreate
+```json
+{
+  "customer": "Empresa ABC",
+  "amount": 1500.50,
+  "description": "Pedido de ejemplo"
+}
+```
+
+### OrderUpdate
+```json
+{
+  "amount": 2000.00
+}
+```
+
+## Headers de Seguridad
+
+La API incluye los siguientes headers de seguridad:
 
 ```
-├── main.py           # Aplicación principal
-├── requirements.txt  # Dependencias
-├── Dockerfile        # Contenedor
-├── README.md         # Documentación
-├── config.py         # Configuración
-├── models/           # Modelos de datos
-└── tests/           # Pruebas
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+X-XSS-Protection: 1; mode=block
+Strict-Transport-Security: max-age=31536000; includeSubDomains
+Referrer-Policy: strict-origin-when-cross-origin
 ```
 
-## 🔧 Dependencias
+## Rate Limiting
 
-- fastapi
-- uvicorn
+Por defecto:
+- `/` y `/health`: 200/min
+- `/orders` (list): 50/min
+- `/orders/{id}`: 100/min
+- POST `/orders`: 30/min
+- PUT `/orders/{id}`: 30/min
+- DELETE `/orders/{id}`: 20/min
+- `/stats`: 30/min
+
+Personalizar con variable `RATE_LIMIT`.
+
+## Desarrollo
+
+### Estructura
+
+```
+python-automation-20260321/
+├── main.py          # Aplicación principal
+├── requirements.txt # Dependencias
+├── Dockerfile       # Imagen Docker
+└── README.md        # Este archivo
+```
+
+### Tests
+
+```bash
+# Test básico
+curl http://localhost:8000/health
+
+# Crear pedido
+curl -X POST http://localhost:8000/orders \
+  -H "Content-Type: application/json" \
+  -d '{"customer": "Test", "amount": 100}'
+```
+
+## Notas de Seguridad
+
+⚠️ **Producción**:
+1. Cambiar `ALLOWED_ORIGINS` a dominios específicos
+2. Usar credenciales fuertes para Oracle
+3. Habilitar SSL/TLS
+4. Configurar rate limits apropiados
+5. Revisar logs regularmente
+
+## Logs
+
+```bash
+# Ver logs
+tail -f uvicorn.log
+```
+
+## Tech Stack
+
+- FastAPI
+- Pydantic
+- slowapi (rate limiting)
 - oracledb
-- python-dotenv
-
-## 🔒 Seguridad
-
-### Recomendaciones para Producción
-1. **Usar HTTPS** - Configurar proxy reverso (nginx, traefik)
-2. **Variables de entorno** - No hardcodear passwords
-3. **Limitar CORS** - Especificar dominios permitidos
-4. **Rate Limiting** - Implementar límites de requests
-5. **Logs** - Enviar logs a sistema centralizado
-6. **Validación Pydantic** - Toda entrada validada
-
-### Oracle Security
-- Usar Oracle Wallet para credenciales
-- Pool de conexiones con timeouts
-- SQL injection prevention (ORM/Pydantic)
-
-## 📝 Licencia
-
-MIT - Alejandro Kore
-
-## 🤖 Actualizado por
-
-OpenClaw AI Assistant - 2026-03-21
-*Mejoras: Documentación de seguridad, CORS, OAuth2 preparado*
+- uvicorn
