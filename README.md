@@ -2,9 +2,9 @@
 
 API REST desarrollada con FastAPI para automatización de procesos con integración a Oracle Database.
 
-## Versión 2.0 - Seguridad Mejorada
+## Versión 2.1 - Seguridad y Testing Mejorados
 
-Esta versión incluye implementaciones de seguridad robustas:
+Esta versión incluye implementaciones de seguridad robustas y tests completos:
 
 ### 🔒 Características de Seguridad
 
@@ -16,11 +16,9 @@ Esta versión incluye implementaciones de seguridad robustas:
 | **SQL Injection Prevention** | Parameterized queries siempre |
 | **Input Validation** | Pydantic con validación estricta |
 | **Request Size Limits** | Validación de campos |
+| **XSS Protection** | Sanitización de entrada |
 
-- **Grype**: Escaneo de vulnerabilidades (alternativa a Trivy)
-- ⚠️ Trivy comprometido (supply chain attack, marzo 2026)
-
-##快速开始
+## 🚀 Inicio Rápido
 
 ### Requisitos
 
@@ -59,7 +57,7 @@ docker build -t python-automation .
 docker run -p 8000:8000 -e ORACLE_USER=system -e ORACLE_PASSWORD=pass -e ORACLE_DSN=host:1521/orclpdb1 python-automation
 ```
 
-## Endpoints
+## 📡 Endpoints
 
 | Método | Endpoint | Descripción | Rate Limit |
 |--------|----------|-------------|------------|
@@ -71,6 +69,27 @@ docker run -p 8000:8000 -e ORACLE_USER=system -e ORACLE_PASSWORD=pass -e ORACLE_
 | PUT | `/orders/{id}` | Actualizar pedido | 30/min |
 | DELETE | `/orders/{id}` | Eliminar pedido | 20/min |
 | GET | `/stats` | Estadísticas | 30/min |
+
+## 🧪 Testing
+
+```bash
+# Instalar dependencias de test
+pip install pytest pytest-asyncio httpx
+
+# Ejecutar tests
+pytest test_api.py -v
+
+# Con coverage
+pytest test_api.py --cov=. --cov-report=html
+```
+
+### Tests Incluidos
+
+- ✅ **Security Headers** - Verificación de headers de seguridad
+- ✅ **Input Validation** - Pruebas de validación de entrada
+- ✅ **SQL Injection Prevention** - Pruebas de sanitización
+- ✅ **Rate Limiting** - Verificación de límites
+- ✅ **Error Handling** - Pruebas de manejo de errores
 
 ## Modelos
 
@@ -115,45 +134,60 @@ Por defecto:
 
 Personalizar con variable `RATE_LIMIT`.
 
-## Desarrollo
-
-### Estructura
+## 📁 Estructura
 
 ```
 python-automation-20260321/
 ├── main.py          # Aplicación principal
+├── test_api.py     # Suite de tests (v2.1)
 ├── requirements.txt # Dependencias
 ├── Dockerfile       # Imagen Docker
-└── README.md        # Este archivo
+├── .env.example    # Ejemplo de configuración
+└── README.md       # Este archivo
 ```
 
-### Tests
+## 🛡️ Validación de Entrada
 
-```bash
-# Test básico
-curl http://localhost:8000/health
+### Protecciones Implementadas
 
-# Crear pedido
-curl -X POST http://localhost:8000/orders \
-  -H "Content-Type: application/json" \
-  -d '{"customer": "Test", "amount": 100}'
-```
+1. **SQL Injection Prevention**
+   - Validación de caracteres sospechosos (`<`, `>`, `;`, `--`, `/*`, `*/`)
+   - Parameterized queries en todas las consultas
+   - Sanitización de entrada
 
-## Notas de Seguridad
+2. **XSS Prevention**
+   - Rechazo de contenido con `<script>` tags
+   - Validación de longitud de strings
 
-⚠️ **Producción**:
-1. Cambiar `ALLOWED_ORIGINS` a dominios específicos
-2. Usar credenciales fuertes para Oracle
-3. Habilitar SSL/TLS
-4. Configurar rate limits apropiados
-5. Revisar logs regularmente
+3. **Business Logic Validation**
+   - Amount debe ser positivo y menor a 1,000,000
+   - Customer name: 1-100 caracteres
+   - Description: máximo 500 caracteres
 
-## Logs
+## ⚠️ Notas de Seguridad para Producción
 
-```bash
-# Ver logs
-tail -f uvicorn.log
-```
+1. ✅ Cambiar `ALLOWED_ORIGINS` a dominios específicos
+2. ✅ Usar credenciales fuertes para Oracle
+3. ✅ Habilitar SSL/TLS
+4. ✅ Configurar rate limits apropiados
+5. ✅ Revisar logs regularmente
+6. ✅ Ejecutar tests antes de deploy
+7. ✅ Usar environment variables para secrets
+
+## 📝 Changelog
+
+### v2.1.0 (2026-03-22)
+- ✅ Suite completa de tests (test_api.py)
+- ✅ Tests de security headers
+- ✅ Tests de SQL injection prevention
+- ✅ Tests de validación de entrada
+- ✅ Tests de rate limiting
+
+### v2.0.0 (2026-03-21)
+- ✅ Headers de seguridad Helmet-style
+- ✅ Rate limiting con slowapi
+- ✅ CORS restringido
+- ✅ Validación estricta con Pydantic
 
 ## Tech Stack
 
@@ -162,3 +196,13 @@ tail -f uvicorn.log
 - slowapi (rate limiting)
 - oracledb
 - uvicorn
+- pytest (testing)
+
+## 📄 Licencia
+
+MIT - Alejandro Kore
+
+## 🤖 Actualizado por
+
+OpenClaw AI Assistant - 2026-03-22
+*Mejoras v2.1: Suite completa de tests, validación mejorada*

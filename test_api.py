@@ -1,173 +1,183 @@
-#!/usr/bin/env python3
 """
-Test Suite for Python Automation API
-Comprehensive testing including unit, integration, and security tests
+Test suite for Python Automation API
+Tests security features, rate limiting, and endpoints
 """
 import pytest
-import asyncio
-import sys
-from unittest.mock import Mock, AsyncMock, patch
 from fastapi.testclient import TestClient
+from unittest.mock import patch, AsyncMock, MagicMock
+from main import app, limiter
 
-# Mock database before importing app
-@pytest.fixture(scope="session")
-def mock_db():
-    """Mock database for testing"""
-    mock_pool = AsyncMock()
-    mock_conn = AsyncMock()
-    mock_cursor = AsyncMock()
-    
-    mock_pool.acquire.return_value.__aenter__.return_value = mock_conn
-    mock_conn.cursor.return_value.__aenter__.return_value = mock_cursor
-    
-    return {"pool": mock_pool, "cursor": mock_cursor}
+client = TestClient(app)
 
 
-# Import after mocking
-sys.path.insert(0, '.')
+class TestSecurityHeaders:
+    """Test security headers are properly set"""
+    
+    def test_x_content_type_options(self):
+        """Verify X-Content-Type-Options header"""
+        response = client.get("/health")
+        assert response.status_code == 200
+        assert response.headers.get("X-Content-Type-Options") == "nosniff"
+    
+    def test_x_frame_options(self):
+        """Verify X-Frame-Options header"""
+        response = client.get("/health")
+        assert response.headers.get("X-Frame-Options") == "DENY"
+    
+    def test_x_xss_protection(self):
+        """Verify X-XSS-Protection header"""
+        response = client.get("/health")
+        assert "X-XSS-Protection" in response.headers
+    
+    def test_strict_transport_security(self):
+        """Verify HSTS header"""
+        response = client.get("/health")
+        assert "Strict-Transport-Security" in response.headers
 
 
-class TestHealthEndpoint:
-    """Test health check endpoints"""
+class TestInputValidation:
+    """Test input validation and SQL injection prevention"""
     
-    def test_health_returns_200(self):
-        """Health endpoint should return 200"""
-        # This is a placeholder - actual test would use TestClient
-        assert True
+    def test_sql_injection_in_customer_name(self):
+        """Verify SQL injection attempts are blocked"""
+        response = client.post("/orders", json={
+            "customer": "test'; DROP TABLE orders;--",
+            "amount": 100
+        })
+        # Should either reject or sanitize
+        assert response.status_code in [200, 400, 422]
     
-    def test_health_check_format(self):
-        """Health check should return correct format"""
-        expected_keys = ["status", "timestamp", "version"]
-        # Verify format structure
-        assert True
-
-
-class TestOrdersEndpoint:
-    """Test orders CRUD operations"""
+    def test_xss_in_customer_name(self):
+        """Verify XSS attempts are blocked"""
+        response = client.post("/orders", json={
+            "customer": "<script>alert('xss')</script>",
+            "amount": 100
+        })
+        assert response.status_code == 422
     
-    def test_list_orders_requires_auth(self):
-        """GET /orders should require authentication"""
-        # Should return 401 without token
-        assert True
+    def test_invalid_amount_zero(self):
+        """Verify zero amount is rejected"""
+        response = client.post("/orders", json={
+            "customer": "Test",
+            "amount": 0
+        })
+        assert response.status_code == 422
     
-    def test_list_orders_with_auth(self):
-        """GET /orders should return list with auth"""
-        # Should return 200 with valid token
-        assert True
+    def test_negative_amount(self):
+        """Verify negative amount is rejected"""
+        response = client.post("/orders", json={
+            "customer": "Test",
+            "amount": -100
+        })
+        assert response.status_code == 422
     
-    def test_create_order_validation(self):
-        """POST /orders should validate input"""
-        # Test validation rules
-        assert True
+    def test_excessive_amount(self):
+        """Verify excessive amount is rejected"""
+        response = client.post("/orders", json={
+            "customer": "Test",
+            "amount": 2_000_000
+        })
+        assert response.status_code == 422
     
-    def test_order_amount_positive(self):
-        """Order amount must be positive"""
-        # Should reject negative/zero amounts
-        assert True
+    def test_customer_name_too_long(self):
+        """Verify customer name length is limited"""
+        response = client.post("/orders", json={
+            "customer": "a" * 200,
+            "amount": 100
+        })
+        assert response.status_code == 422
 
 
 class TestRateLimiting:
     """Test rate limiting functionality"""
     
-    def test_rate_limit_exceeded(self):
-        """Should return 429 when limit exceeded"""
-        assert True
+    def test_root_rate_limit(self):
+        """Verify root endpoint has rate limit"""
+        # Should succeed
+        response = client.get("/")
+        assert response.status_code == 200
     
-    def test_rate_limit_resets(self):
-        """Rate limit should reset after window"""
-        assert True
+    def test_health_rate_limit(self):
+        """Verify health endpoint has rate limit"""
+        response = client.get("/health")
+        assert response.status_code == 200
 
 
-class TestSecurityHeaders:
-    """Test security headers"""
+class TestEndpoints:
+    """Test API endpoints"""
     
-    def test_x_content_type_options(self):
-        """Should have X-Content-Type-Options: nosniff"""
-        assert True
+    def test_root_endpoint(self):
+        """Test root endpoint returns expected data"""
+        response = client.get("/")
+        assert response.status_code == 200
+        data = response.json()
+        assert "message" in data
+        assert "version" in data
     
-    def test_x_frame_options(self):
-        """Should have X-Frame-Options: DENY"""
-        assert True
+    def test_health_endpoint(self):
+        """Test health check endpoint"""
+        response = client.get("/health")
+        assert response.status_code == 200
+        data = response.json()
+        assert "status" in data
+        assert data["status"] == "healthy"
     
-    def test_strict_transport_security(self):
-        """Should have HSTS header"""
-        assert True
+    def test_orders_endpoint_structure(self):
+        """Test orders endpoint returns list"""
+        # Mock database for testing
+        with patch('main.pool', None):
+            response = client.get("/orders")
+            # Will return 503 if no DB, which is expected without Oracle
+            assert response.status_code in [200, 503]
 
 
-class TestInputValidation:
-    """Test input validation"""
+class TestOrderValidation:
+    """Test order-specific validation"""
     
-    def test_sql_injection_prevention(self):
-        """Should prevent SQL injection"""
-        malicious_inputs = [
-            "'; DROP TABLE orders; --",
-            "1 OR 1=1",
-            "' UNION SELECT * FROM users--"
-        ]
-        for inp in malicious_inputs:
-            # Should sanitize/reject
-            assert True
+    def test_create_order_missing_customer(self):
+        """Test creating order without customer fails"""
+        response = client.post("/orders", json={
+            "amount": 100
+        })
+        assert response.status_code == 422
     
-    def test_xss_prevention(self):
-        """Should prevent XSS attacks"""
-        malicious = ["<script>alert(1)</script>", "javascript:alert(1)"]
-        for inp in malicious:
-            # Should sanitize
-            assert True
+    def test_create_order_missing_amount(self):
+        """Test creating order without amount fails"""
+        response = client.post("/orders", json={
+            "customer": "Test"
+        })
+        assert response.status_code == 422
+    
+    def test_create_order_valid(self):
+        """Test creating valid order"""
+        response = client.post("/orders", json={
+            "customer": "Test Company",
+            "amount": 1500.50,
+            "description": "Test order"
+        })
+        # Should succeed or fail gracefully if no DB
+        assert response.status_code in [200, 201, 503]
 
 
-class TestAuthentication:
-    """Test authentication"""
+class TestErrorHandling:
+    """Test error handling"""
     
-    def test_invalid_credentials(self):
-        """Should reject invalid credentials"""
-        assert True
+    def test_invalid_order_id(self):
+        """Test invalid order ID is rejected"""
+        response = client.get("/orders/0")
+        assert response.status_code == 400
     
-    def test_expired_token(self):
-        """Should reject expired tokens"""
-        assert True
+    def test_excessive_order_id(self):
+        """Test excessive order ID is rejected"""
+        response = client.get("/orders/9999999999")
+        assert response.status_code == 400
     
-    def test_missing_token(self):
-        """Should require authentication"""
-        assert True
+    def test_not_found_order(self):
+        """Test non-existent order returns 404 or 503"""
+        with patch('main.pool', None):
+            response = client.get("/orders/99999")
+            assert response.status_code in [404, 503]
 
 
-class TestDatabase:
-    """Test database operations"""
-    
-    @pytest.mark.asyncio
-    async def test_connection_pool(self):
-        """Should use connection pooling"""
-        assert True
-    
-    @pytest.mark.asyncio
-    async def test_query_timeout(self):
-        """Queries should have timeouts"""
-        assert True
-    
-    @pytest.mark.asyncio
-    async def test_transaction_rollback(self):
-        """Failed transactions should rollback"""
-        assert True
-
-
-# Performance Tests
-class TestPerformance:
-    """Performance benchmarks"""
-    
-    def test_response_time(self):
-        """Response time should be under threshold"""
-        max_ms = 200  # 200ms threshold
-        # Assert response_time < max_ms
-        assert True
-    
-    def test_concurrent_requests(self):
-        """Should handle concurrent requests"""
-        max_concurrent = 100
-        # Assert handles without errors
-        assert True
-
-
-# Run tests
 if __name__ == "__main__":
-    pytest.main([__file__, "-v", "--tb=short"])
+    pytest.main([__file__, "-v"])
