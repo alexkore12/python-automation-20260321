@@ -1,257 +1,161 @@
-# 🐍 Python Automation API
+# Python Automation API
 
-API REST con FastAPI para automatización de procesos, integrada con Oracle Database.
+API REST desarrollada con FastAPI para automatización de procesos con integración a Oracle Database.
 
-## 📋 Descripción
+## Versión 2.0 - Seguridad Mejorada
 
-API RESTful de alto rendimiento construida con FastAPI que proporciona endpoints para gestión de pedidos (orders) con persistencia en Oracle Database. Ideal para sistemas de automatización empresarial.
+Esta versión incluye implementaciones de seguridad robustas:
 
-## 🛠️ Características
+### 🔒 Características de Seguridad
 
-- ✅ **FastAPI** - Framework moderno y rápido
-- ✅ **Oracle Database** - Persistencia robusta
-- ✅ **Pydantic** - Validación de datos
-- ✅ **CORS** - Soporte para cross-origin
-- ✅ **Connection Pool** - Optimización de conexiones
-- ✅ **Logging** - Registro estructurado
-- ✅ **Health Checks** - Monitoreo de estado
-- ✅ **Documentación Auto** - OpenAPI/Swagger
+| Feature | Implementación |
+|---------|----------------|
+| **Helmet-style Headers** | X-Content-Type-Options, X-Frame-Options, X-XSS-Protection, HSTS |
+| **Rate Limiting** | slowapi con límites por endpoint |
+| **CORS Restringido** | Orígenes configurables via entorno |
+| **SQL Injection Prevention** | Parameterized queries siempre |
+| **Input Validation** | Pydantic con validación estricta |
+| **Request Size Limits** | Validación de campos |
 
-## 🚀 Instalación Local
+##快速开始
 
-### Prerrequisitos
-
-- Python 3.9+
-- Oracle Database (local o remoto)
-
-### Pasos
+### Requisitos
 
 ```bash
-# 1. Clonar
-git clone https://github.com/alexkore12/python-automation-20260321.git
-cd python-automation-20260321
-
-# 2. Crear entorno virtual
-python3 -m venv venv
-source venv/bin/activate
-
-# 3. Instalar dependencias
 pip install -r requirements.txt
+```
 
-# 4. Configurar variables de entorno
+### Configuración
+
+```bash
+# Variables de entorno requeridas
 export ORACLE_USER="system"
-export ORACLE_PASSWORD="tu_password"
+export ORACLE_PASSWORD="your_secure_password"
 export ORACLE_DSN="localhost:1521/orclpdb1"
 
-# 5. Ejecutar
+# Opcional
+export ALLOWED_ORIGINS="http://localhost:3000,https://yourdomain.com"
+export RATE_LIMIT="100/minute"
+export PORT=8000
+```
+
+### Ejecutar
+
+```bash
+# Desarrollo
 python main.py
+
+# Producción
+uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
 ```
 
-La API estará disponible en `http://localhost:8000`
-
-## 🐳 Docker
-
-### Build
+### Docker
 
 ```bash
-docker build -t python-automation-api .
+docker build -t python-automation .
+docker run -p 8000:8000 -e ORACLE_USER=system -e ORACLE_PASSWORD=pass -e ORACLE_DSN=host:1521/orclpdb1 python-automation
 ```
 
-### Ejecutar con Oracle
+## Endpoints
 
-```bash
-docker run -d \
-  -p 8000:8000 \
-  -e ORACLE_USER=system \
-  -e ORACLE_PASSWORD=password \
-  -e ORACLE_DSN=oracle:1521/orclpdb1 \
-  python-automation-api
-```
+| Método | Endpoint | Descripción | Rate Limit |
+|--------|----------|-------------|------------|
+| GET | `/` | Información del API | 200/min |
+| GET | `/health` | Health check | 200/min |
+| GET | `/orders` | Listar pedidos | 50/min |
+| GET | `/orders/{id}` | Obtener pedido | 100/min |
+| POST | `/orders` | Crear pedido | 30/min |
+| PUT | `/orders/{id}` | Actualizar pedido | 30/min |
+| DELETE | `/orders/{id}` | Eliminar pedido | 20/min |
+| GET | `/stats` | Estadísticas | 30/min |
 
-### Docker Compose
-
-```yaml
-version: '3.8'
-services:
-  api:
-    build: .
-    ports:
-      - "8000:8000"
-    environment:
-      - ORACLE_USER=${ORACLE_USER}
-      - ORACLE_PASSWORD=${ORACLE_PASSWORD}
-      - ORACLE_DSN=${ORACLE_DSN}
-    depends_on:
-      - oracle
-
-  oracle:
-    image: container-registry.oracle.com/database/express:latest
-    ports:
-      - "1521:1521"
-    environment:
-      - ORACLE_PWD=password
-```
-
-## 📡 Endpoints
-
-### Health & Status
-
-| Método | Endpoint | Descripción |
-|--------|----------|-------------|
-| GET | `/` | Información base de la API |
-| GET | `/health` | Health check con estado de DB |
-
-### Orders
-
-| Método | Endpoint | Descripción |
-|--------|----------|-------------|
-| GET | `/orders` | Listar todos los pedidos |
-| GET | `/orders/{id}` | Obtener pedido por ID |
-| POST | `/orders` | Crear nuevo pedido |
-| PUT | `/orders/{id}` | Actualizar pedido |
-| DELETE | `/orders/{id}` | Eliminar pedido |
-
-### Stats
-
-| Método | Endpoint | Descripción |
-|--------|----------|-------------|
-| GET | `/stats` | Estadísticas de pedidos |
-
-## 📝 Modelos de Datos
+## Modelos
 
 ### OrderCreate
 ```json
 {
-  "customer": "string (required, 1-100 chars)",
-  "amount": "number (required, > 0)",
-  "description": "string (optional)"
+  "customer": "Empresa ABC",
+  "amount": 1500.50,
+  "description": "Pedido de ejemplo"
 }
 ```
 
 ### OrderUpdate
 ```json
 {
-  "customer": "string (optional)",
-  "amount": "number (optional, > 0)",
-  "description": "string (optional)"
+  "amount": 2000.00
 }
 ```
 
-### Response Example
-```json
-{
-  "id": 1,
-  "customer": "Juan Pérez",
-  "amount": 150.50,
-  "description": "Pedido de ejemplo",
-  "message": "Order created successfully"
-}
+## Headers de Seguridad
+
+La API incluye los siguientes headers de seguridad:
+
+```
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+X-XSS-Protection: 1; mode=block
+Strict-Transport-Security: max-age=31536000; includeSubDomains
+Referrer-Policy: strict-origin-when-cross-origin
 ```
 
-## 🔧 Configuración
+## Rate Limiting
 
-### Variables de Entorno
+Por defecto:
+- `/` y `/health`: 200/min
+- `/orders` (list): 50/min
+- `/orders/{id}`: 100/min
+- POST `/orders`: 30/min
+- PUT `/orders/{id}`: 30/min
+- DELETE `/orders/{id}`: 20/min
+- `/stats`: 30/min
 
-| Variable | Descripción | Default |
-|----------|-------------|---------|
-| `ORACLE_USER` | Usuario de Oracle | system |
-| `ORACLE_PASSWORD` | Password de Oracle | password |
-| `ORACLE_DSN` | Data Source Name | localhost:1521/orclpdb1 |
+Personalizar con variable `RATE_LIMIT`.
 
-## 📁 Estructura
+## Desarrollo
+
+### Estructura
 
 ```
 python-automation-20260321/
-├── main.py              # Aplicación principal
-├── requirements.txt     # Dependencias
-├── Dockerfile          # Imagen Docker
-├── docker-compose.yaml  # Orquestación
-└── README.md           # Este archivo
+├── main.py          # Aplicación principal
+├── requirements.txt # Dependencias
+├── Dockerfile       # Imagen Docker
+└── README.md        # Este archivo
 ```
 
-## 📊 Health Check Response
-
-```json
-{
-  "status": "healthy",
-  "database": "connected",
-  "service": "python-automation"
-}
-```
-
-## 📈 Stats Response
-
-```json
-{
-  "total_orders": 42,
-  "total_amount": 15000.00,
-  "average_amount": 357.14
-}
-```
-
-## 🔨 Desarrollo
-
-### Ejecutar con hot-reload
+### Tests
 
 ```bash
-uvicorn main:app --reload --host 0.0.0.0 --port 8000
+# Test básico
+curl http://localhost:8000/health
+
+# Crear pedido
+curl -X POST http://localhost:8000/orders \
+  -H "Content-Type: application/json" \
+  -d '{"customer": "Test", "amount": 100}'
 ```
 
-### Ejecutar tests
+## Notas de Seguridad
+
+⚠️ **Producción**:
+1. Cambiar `ALLOWED_ORIGINS` a dominios específicos
+2. Usar credenciales fuertes para Oracle
+3. Habilitar SSL/TLS
+4. Configurar rate limits apropiados
+5. Revisar logs regularmente
+
+## Logs
 
 ```bash
-pytest tests/
+# Ver logs
+tail -f uvicorn.log
 ```
 
-## ☁️ Deploy
+## Tech Stack
 
-### Render/Railway
-
-1. Conecta tu repositorio
-2. Configura las variables de entorno
-3. Comando: `python main.py`
-
-### Kubernetes
-
-```yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: python-automation
-spec:
-  replicas: 2
-  selector:
-    matchLabels:
-      app: python-automation
-  template:
-    spec:
-      containers:
-      - name: api
-        image: python-automation-api:latest
-        ports:
-        - containerPort: 8000
-        env:
-        - name: ORACLE_USER
-          valueFrom:
-            secretKeyRef:
-              name: oracle-credentials
-              key: user
-```
-
-## 📝 Changelog
-
-- **v1.0.0** - API básica con CRUD de pedidos
-- **v1.0.1** - Mejoras en validación y logging
-- **v1.1.0** - Endpoint de estadísticas
-
-## 🤝 Contribución
-
-1. Fork el repositorio
-2. Crea una rama (`git checkout -b feature/nueva-caracteristica`)
-3. Commit tus cambios (`git commit -am 'Agrega nueva característica'`)
-4. Push a la rama (`git push origin feature/nueva-caracteristica`)
-5. Crea un Pull Request
-
-## 📄 Licencia
-
-MIT License - Uso libre y modificaciones bienvenidas.
+- FastAPI
+- Pydantic
+- slowapi (rate limiting)
+- oracledb
+- uvicorn
