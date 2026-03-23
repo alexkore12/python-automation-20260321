@@ -1,0 +1,9 @@
+# CODEOWNERS - Default reviewers for all PRs
+# Add your GitHub username to receive review requests
+
+# Default owner for all files
+* @alexkore12
+
+# Additional reviewers by area
+# /src/ @another-reviewer
+# /docs/ @doc-reviewer
