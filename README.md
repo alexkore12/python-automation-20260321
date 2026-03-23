@@ -59,6 +59,37 @@ python-automation-20260321/
 
 Lee [CONTRIBUTING.md](CONTRIBUTING.md).
 
+## 🧪 Testing
+
+```bash
+# Ejecutar tests
+pytest
+
+# Con coverage
+pytest --cov=. --cov-report=html
+```
+
+## 📈 CI/CD
+
+Workflows de GitHub Actions incluidos:
+- ✅ Linting con ruff
+- ✅ Tests con pytest
+- ✅ Security scanning con Grype
+- ✅ Docker build
+
+## 🛠️ Scripts Disponibles
+
+| Script | Descripción |
+|--------|-------------|
+| `main.py` | Punto de entrada principal |
+| `advanced_utils.py` | Utilidades avanzadas |
+
+## 🌐 Referencias
+
+- [Python Documentation](https://docs.python.org/3/)
+- [Grype Vulnerability Scanner](https://github.com/anchore/grype)
+- [Docker Docs](https://docs.docker.com/)
+
 ## 📝 Licencia
 
 MIT - [LICENSE](LICENSE)
