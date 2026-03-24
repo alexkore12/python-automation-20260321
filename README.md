@@ -1,28 +1,38 @@
-# ⚙️ Python Automation Scripts
+# ⚙️ Python Automation API
+
+> API REST completa con FastAPI y Oracle Database — Gestión de pedidos, seguridad JWT, rate limiting y despliegues containerizados.
 
 [![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://python.org)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.109+-green.svg)](https://fastapi.tiangolo.com)
+[![Oracle](https://img.shields.io/badge/Oracle-Database- red.svg)](https://oracle.com)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Docker](https://img.shields.io/badge/Docker-Ready-blue.svg)](https://docker.com)
+[![Security: Grype](https://img.shields.io/badge/Security-Grype-orange.svg)](.grype.yaml)
 
 ## 📋 Descripción
 
-Colección de scripts de automatización en Python para tareas DevOps y de infraestructura.
+API REST de producción construida con **FastAPI** e **Oracle Database** para gestión de pedidos (orders). Implementa seguridad robusta incluyendo autenticación JWT, rate limiting, validación de entrada estricta y prevención de SQL injection.
 
 ## ✨ Características
 
-- 🔄 **Automatización de Tareas**: Scripts reutilizables para operaciones comunes
-- 🐳 **Docker Ready**: Ejecuta scripts en contenedores aislados
-- 📊 **Logging**: Logging estructurado con rotación de archivos
-- ⚙️ **Configurable**: Totalmente configurable via variables de entorno
-- 🔒 **Security**: Escaneo automático de vulnerabilidades con Grype
-- 📈 **CI/CD**: GitHub Actions para linting, testing y security scanning
+- ⚡ **Alto Rendimiento** — FastAPI + Uvicorn con async/await
+- 🗄️ **Oracle Database** — Pool de conexiones asíncrono con oracledb
+- 🔒 **Seguridad Completa** — Helmet headers, CORS, rate limiting, JWT
+- 🛡️ **SQL Injection Prevention** — Parameterized queries y validación de entrada
+- 📝 **Documentación Automática** — Swagger UI (`/docs`) y ReDoc (`/redoc`)
+- 📊 **API REST Completa** — CRUD de pedidos, estadísticas y health checks
+- 🐳 **Docker Ready** — Multi-stage builds con Docker y Docker Compose
+- 🔍 **Security Scanning** — Grype para escaneo de vulnerabilidades en CI
+- ✅ **Testing** — Suite completa con pytest y tests de seguridad
+- 📈 **Rate Limiting** — SlowAPI para proteger endpoints críticos
 
-## 🚀 Uso
+## 🚀 Instalación
 
-### Prerequisites
+### Prerrequisitos
 
 - Python 3.11+
-- Docker (para ejecución en contenedor)
+- Oracle Database (local o remoto)
+- Docker (opcional)
 
 ### Instalación Local
 
@@ -33,130 +43,239 @@ cd python-automation-20260321
 
 # Crear entorno virtual
 python -m venv venv
-source venv/bin/activate  # Linux/Mac
-# venv\Scripts\activate  # Windows
+source venv/bin/activate
 
 # Instalar dependencias
 pip install -r requirements.txt
 
 # Configurar variables de entorno
 cp .env.example .env
+# Editar .env con tus credenciales de Oracle
+```
 
-# Ejecutar script principal
-python main.py
+### Ejecutar
+
+```bash
+# Servidor de desarrollo (auto-reload)
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
+
+# Producción
+uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
 ```
 
 ### Docker
 
 ```bash
-# Ejecutar con docker-compose
-docker-compose up -d
+# Construir imagen
+docker build -t python-automation-api .
 
-# O ejecutar una vez
-docker-compose run --rm automation
+# Ejecutar
+docker run -p 8000:8000 --env-file .env python-automation-api
 ```
+
+### Docker Compose
+
+```bash
+docker-compose up -d
+```
+
+## 📖 API Endpoints
+
+### Raíz y Health
+
+| Método | Endpoint | Descripción |
+|--------|----------|-------------|
+| GET | `/` | Información de la API |
+| GET | `/health` | Health check con estado de BD |
+
+### Pedidos (Orders)
+
+| Método | Endpoint | Descripción | Rate Limit |
+|--------|----------|-------------|------------|
+| GET | `/orders` | Listar todos los pedidos | 50/min |
+| GET | `/orders/{id}` | Obtener pedido por ID | 100/min |
+| POST | `/orders` | Crear nuevo pedido | 30/min |
+| PUT | `/orders/{id}` | Actualizar pedido | 30/min |
+| DELETE | `/orders/{id}` | Eliminar pedido | 20/min |
+| GET | `/stats` | Estadísticas de pedidos | 30/min |
+
+### Documentación
+
+- **Swagger UI**: http://localhost:8000/docs
+- **ReDoc**: http://localhost:8000/redoc
+- **OpenAPI JSON**: http://localhost:8000/openapi.json
 
 ## ⚙️ Configuración
 
-Copia `.env.example` a `.env` y configura:
+### Variables de Entorno
 
 | Variable | Descripción | Default |
 |----------|-------------|---------|
-| `LOG_LEVEL` | Nivel de logging | INFO |
-| `LOG_FILE` | Archivo de log | automation.log |
-| `MAX_WORKERS` | Workers máximos | 4 |
-| `TIMEOUT` | Timeout en segundos | 300 |
+| `ORACLE_USER` | Usuario de Oracle | **Requerido** |
+| `ORACLE_PASSWORD` | Contraseña de Oracle | **Requerido** |
+| `ORACLE_DSN` | Data Source Name | `localhost:1521/orclpdb1` |
+| `HOST` | Host del servidor | `0.0.0.0` |
+| `PORT` | Puerto del servidor | `8000` |
+| `ALLOWED_ORIGINS` | CORS orígenes (comma sep.) | `*` |
+| `RATE_LIMIT` | Rate limit global | `100/minute` |
+| `LOG_LEVEL` | Nivel de logging | `INFO` |
 
-## 📁 Estructura
+### Rate Limits por Endpoint
+
+| Endpoint | Límite |
+|----------|--------|
+| `/` | 200/min |
+| `/health` | 200/min |
+| `/orders` (GET) | 50/min |
+| `/orders/{id}` (GET) | 100/min |
+| `/orders` (POST) | 30/min |
+| `/orders/{id}` (PUT) | 30/min |
+| `/orders/{id}` (DELETE) | 20/min |
+| `/stats` | 30/min |
+
+## 🔒 Seguridad
+
+### Headers de Seguridad
+
+- `X-Content-Type-Options: nosniff`
+- `X-Frame-Options: DENY`
+- `X-XSS-Protection: 1; mode=block`
+- `Strict-Transport-Security: max-age=31536000`
+- `Referrer-Policy: strict-origin-when-cross-origin`
+
+### Validación de Entrada
+
+- **Customer name**: 1-100 caracteres, sin caracteres especiales (`<`, `>`, `;`, `--`)
+- **Amount**: > 0, <= 1,000,000
+- **Order ID**: 1 - 999,999,999
+- **Todas las queries usan parameterized queries** (previene SQL injection)
+
+### CORS
+
+Configurable via `ALLOWED_ORIGINS`. Por defecto permite `localhost:3000` y `localhost:8080`.
+
+## 📁 Estructura del Proyecto
 
 ```
 python-automation-20260321/
-├── .dockerignore
-├── .env.example
-├── .github/workflows/
-├── .gitignore
-├── .grype.yaml
-├── CODE_OF_CONDUCT.md
-├── CONTRIBUTING.md
+├── main.py              # FastAPI app + Oracle DB integration
+├── advanced_utils.py    # Utilidades: ConfigManager, TaskScheduler, etc.
+├── health_check.py      # Script CLI de health check
+├── test_api.py          # Suite de tests con pytest
+├── requirements.txt     # Dependencias Python
 ├── Dockerfile
-├── LICENSE
-├── README.md
-├── SECURITY.md
-├── advanced_utils.py
 ├── docker-compose.yaml
-├── health_check.py
-├── main.py
-└── requirements.txt
+├── .env.example
+├── .grype.yaml         # Config de escaneo Grype
+├── .github/workflows/   # GitHub Actions CI/CD
+├── SECURITY.md
+├── CONTRIBUTING.md
+└── README.md
 ```
-
-## 🛠️ Scripts Disponibles
-
-| Script | Descripción |
-|--------|-------------|
-| `main.py` | Punto de entrada principal - orchestration de tareas |
-| `advanced_utils.py` | Utilidades avanzadas para automatización |
-| `health_check.py` | Script de healthcheck para contenedores |
-
-## 🤝 Contribuir
-
-¡Las contribuciones son bienvenidas! Por favor lee [CONTRIBUTING.md](CONTRIBUTING.md) antes de enviar PRs.
 
 ## 🧪 Testing
 
 ```bash
-# Ejecutar tests
-pytest
+# Ejecutar todos los tests
+pytest -v
 
 # Con coverage
 pytest --cov=. --cov-report=html
 
-# Modo watch (re-ejecuta en cambios)
-pytest --watch
+# Tests específicos
+pytest test_api.py::TestSecurityHeaders -v
+pytest test_api.py::TestInputValidation -v
 ```
+
+### Suites de Test
+
+- **TestSecurityHeaders** — Verifica headers de seguridad
+- **TestInputValidation** — SQL injection, XSS, límites de validación
+- **TestRateLimiting** — Rate limits por endpoint
+- **TestEndpoints** — CRUD de pedidos
+- **TestErrorHandling** — Casos de error
 
 ## 📈 CI/CD
 
-Workflows de GitHub Actions incluidos:
-- ✅ Linting con ruff
-- ✅ Tests con pytest
-- ✅ Security scanning con Grype
-- ✅ Docker build
+GitHub Actions incluido:
+
+```yaml
+- Lint: ruff + flake8
+- Tests: pytest con coverage
+- Security: Grype vulnerability scan
+- Docker: build + push
+```
 
 ## 🚨 Troubleshooting
 
-### ModuleNotFoundError
+### Oracle connection failed
 
-**Problema:** `ModuleNotFoundError: No module named '...'`  
-**Solución:** Asegúrate de tener el entorno virtual activado y las dependencias instaladas.
+**Problema:** `ORA-...` errors  
+**Solución:** Verifica `ORACLE_USER`, `ORACLE_PASSWORD` y `ORACLE_DSN` en `.env`.
+
+### Rate limit exceeded
+
+**Problema:** `429 Too Many Requests`  
+**Solución:** Espera o aumenta `RATE_LIMIT` en `.env`.
+
+### CORS errors en el navegador
+
+**Problema:** `Access-Control-Allow-Origin` missing  
+**Solución:** Agrega tu dominio a `ALLOWED_ORIGINS` en `.env`.
+
+## 🛠️ Utilidades Incluidas
+
+### Health Check CLI
 
 ```bash
-source venv/bin/activate
-pip install -r requirements.txt
+python health_check.py
 ```
 
-### Permisos denegados en Docker
-
-**Problema:** `permission denied while trying to connect to the Docker daemon`  
-**Solución:** Verifica que el usuario tenga permisos para usar Docker.
-
-```bash
-# Agregar usuario al grupo docker
-sudo usermod -aG docker $USER
-# O ejecutar con sudo
+Salida:
+```
+🔍 Python Automation - Health Check
+✅ service: healthy
+⏭️  database: skipped (no credentials)
+✅ environment: healthy
+Overall: HEALTHY
 ```
 
-### Errores de conexión
+### Advanced Utils
 
-**Problema:** Error de timeout en operaciones de red  
-**Solución:** Aumenta el valor de TIMEOUT en .env o verifica tu conexión.
+```python
+from advanced_utils import ConfigManager, TaskScheduler, DataProcessor
 
-## 🌐 Referencias
+# Configuración centralizada
+config = ConfigManager('config.yaml')
+db_host = config.get('database.host', 'localhost')
 
-- [Python Documentation](https://docs.python.org/3/)
-- [Grype Vulnerability Scanner](https://github.com/anchore/grype)
-- [Docker Docs](https://docs.docker.com/)
-- [Pytest Documentation](https://docs.pytest.org/)
+# Scheduling de tareas
+scheduler = TaskScheduler()
+scheduler.add_task(backup_function, 'daily')
+scheduler.run_continuously()
+
+# Procesamiento de datos
+processor = DataProcessor()
+batch_results = list(processor.batch_process(items, batch_size=100))
+```
+
+## 🤝 Contribuir
+
+1. Fork el repositorio
+2. Crear branch: `git checkout -b feature/nueva-caracteristica`
+3. Commit: `git commit -am 'Agregar característica'`
+4. Push: `git push origin feature/nueva-caracteristica`
+5. Abrir Pull Request
+
+Ver [CONTRIBUTING.md](CONTRIBUTING.md) para más detalles.
 
 ## 📝 Licencia
 
-MIT - véase [LICENSE](LICENSE) para detalles.
+MIT License - ver [LICENSE](LICENSE) para detalles.
+
+## 🔗 Enlaces Útiles
+
+- [FastAPI Documentation](https://fastapi.tiangolo.com)
+- [Oracle DB Python Driver](https://oracle.github.io/python-oracledb/)
+- [SlowAPI Rate Limiting](https://github.com/laurentS/slowapi)
+- [Grype Vulnerability Scanner](https://github.com/anchore/grype)
